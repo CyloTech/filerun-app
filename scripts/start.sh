@@ -1,8 +1,6 @@
 #!/bin/bash
 set -x
 
-mkdir -p /var/run/mysqld
-chown mysql:mysql /var/run/mysqld
 
 if [ ! -f /etc/filerun_installed ]; then
     echo "Setting up Ioncube loaders"
@@ -17,9 +15,11 @@ if [ ! -f /etc/filerun_installed ]; then
     mkdir -p /home/appbox/trash
     mkdir -p /home/appbox/thumbnails
 
+    # Setup the LEMP Stack.
+    /bin/bash /scripts/lemp.sh
+
+    # Is this first install?
     if [ ! -f /home/appbox/public_html/dav.php ]; then
-        # Setup the LEMP Stack.
-        /bin/bash /scripts/lemp.sh
         rm -fr /home/appbox/public_html/index.php
 
         /usr/sbin/mysqld --user=appbox --socket=/var/run/mysqld/mysqld.sock &
