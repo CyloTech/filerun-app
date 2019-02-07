@@ -20,6 +20,8 @@ RUN apt update && \
 
 ADD sources/00-filerun.ini /00-filerun.ini
 ADD sources/db.sql /db.sql
+ADD sources/FileRun.zip /FileRun.zip
+ADD sources/ioncube.tar.gz /ioncube.tar.gz
 
 ADD scripts/start.sh /scripts/start.sh
 RUN chmod -R +x /scripts
