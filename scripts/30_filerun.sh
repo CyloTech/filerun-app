@@ -15,14 +15,17 @@ if [ ! -f /etc/filerun_installed ]; then
     mkdir -p /home/appbox/trash
     mkdir -p /home/appbox/thumbnails
 
-    # Setup the LEMP Stack.
-    /bin/bash /scripts/lemp.sh
 
     # Is this first install?
     if [ ! -f /home/appbox/public_html/dav.php ]; then
         rm -fr /home/appbox/public_html/index.php
 
-        /usr/sbin/mysqld --user=appbox --socket=/var/run/mysqld/mysqld.sock &
+        /usr/sbin/mysqld --defaults-file=/home/appbox/config/mysql/mysqld.cnf --verbose=0 --socket=/run/mysqld/mysqld.sock &
+        while !(mysqladmin ping)
+        do
+           sleep 3
+           echo "waiting for mysql ..."
+        done
 
         echo "Downloading Filerun"
         cd /home/appbox/public_html
@@ -36,7 +39,7 @@ cat << EOF >> /home/appbox/public_html/system/data/autoconfig.php
   'server' => 'localhost',
   'database' => '${DB_NAME}',
   'username' => 'root',
-  'password' => '${MYSQL_ROOT_PASS}',
+  'password' => '${MYSQL_ROOT_PASSWORD}',
 );
 EOF
 
@@ -46,13 +49,16 @@ cat << EOF >> /home/appbox/public_html/customizables/config.php
 \$config['path']['thumbnail_cache'] = '/home/appbox/thumbnails';
 EOF
 
-        mysql -u root -p${MYSQL_ROOT_PASS} ${DB_NAME} < /db.sql
+        mysql -u root -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} < /db.sql
 
         rm -fr /db.sql
 
         php /home/appbox/public_html/cron/reset_superuser_pass.php localhost ${ADMIN_PASS}
 
         pkill -9 mysqld
+
+        rm -fr /home/appbox/config/nginx/sites-enabled/default-site.conf
+        mv /nginx-webdav.conf /home/appbox/config/nginx/sites-enabled/nginx-webdav.conf
 
         touch /etc/filerun_installed
     else
@@ -63,6 +69,10 @@ EOF
         do
         sleep 5
     done
+##TODO: REMOVE THIS AFTER RELEASE
+#mkdir /APPBOX_DATA
+#chown -R appbox:appbox /APPBOX_DATA
+
 else
     echo "App is already installed, just start up."
 fi
@@ -70,6 +80,3 @@ fi
 chown -R appbox:appbox /home/appbox/trash
 chown -R appbox:appbox /home/appbox/thumbnails
 chown -R appbox:appbox /home/appbox/public_html
-
-exec /usr/bin/supervisord -n -c /home/appbox/config/supervisor/supervisord.conf
-exec "$@"

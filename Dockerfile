@@ -1,12 +1,12 @@
-FROM repo.cylo.io/ubuntu-lemp
+FROM repo.cylo.io/baseimage
 
-# Disable Supervisor on the parent image, this allows us to run commands after the parent has finished installing.
-ENV START_SUPERVISOR=false
-
-# Declare Environment variables required by the parent:
-ENV MYSQL_ROOT_PASS=mysqlr00t
-ENV DB_NAME=filerun
-ENV ADMIN_PASS=Letmein123
+ENV MYSQL_ROOT_PASSWORD=mysqlr00t \
+    APEX_CALLBACK=false \
+    INSTALL_MYSQL=true \
+    INSTALL_NGINXPHP=true \
+    DB_NAME=filerun \
+    ADMIN_NAME=superuser \
+    ADMIN_PASS=Letmein123
 
 RUN apt update && \
     apt-get -y install \
@@ -16,14 +16,16 @@ RUN apt update && \
                 php-gd \
                 php-ldap \
                 php-xml \
-                unzip
+                unzip \
+                imagemagick \
+                ffmpeg \
+                pngquant
 
 ADD sources/00-filerun.ini /00-filerun.ini
 ADD sources/db.sql /db.sql
 ADD sources/FileRun.zip /FileRun.zip
 ADD sources/ioncube.tar.gz /ioncube.tar.gz
+ADD sources/nginx-webdav.conf /nginx-webdav.conf
 
-ADD scripts/start.sh /scripts/start.sh
-RUN chmod -R +x /scripts
-
-ENTRYPOINT [ "/scripts/start.sh" ]
+ADD scripts/30_filerun.sh /etc/my_init.d/30_filerun.sh
+RUN chmod +x /etc/my_init.d/30_filerun.sh
