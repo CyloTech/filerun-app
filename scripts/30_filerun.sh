@@ -60,6 +60,8 @@ EOF
         rm -fr /home/appbox/config/nginx/sites-enabled/default-site.conf
         mv /nginx-webdav.conf /home/appbox/config/nginx/sites-enabled/nginx-webdav.conf
 
+        mv /custom_theme.css /home/appbox/public_html/customizables/custom_theme.css
+
         touch /etc/filerun_installed
     else
         pkill -9 mysqld

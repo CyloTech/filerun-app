@@ -26,6 +26,7 @@ ADD sources/db.sql /db.sql
 ADD sources/FileRun.zip /FileRun.zip
 ADD sources/ioncube.tar.gz /ioncube.tar.gz
 ADD sources/nginx-webdav.conf /nginx-webdav.conf
+ADD sources/custom_theme.css /custom_theme.css
 
 ADD scripts/30_filerun.sh /etc/my_init.d/30_filerun.sh
 RUN chmod +x /etc/my_init.d/30_filerun.sh
