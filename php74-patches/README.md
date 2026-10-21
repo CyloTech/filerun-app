@@ -7,9 +7,13 @@ fails if one does not. The build records the name and SHA-256 of every
 applied patch in `/usr/share/appbox/php74-patches.sha256`, and the release
 gate compares that list with this directory.
 
-Bump `PHP74_LOCAL_SUFFIX` in the Dockerfile (`+cylo1`, `+cylo2`, ...) whenever
+Bump `PHP74_LOCAL_SUFFIX` in the Dockerfile (`+cylo2`, `+cylo3`, ...) whenever
 the set of patches changes after a release has been pushed, and add a
 regression check under `release/regression/` for the issue each patch fixes.
+`+cylo1` was carried by the unpatched staging trial builds, so the first
+patched release uses `+cylo2`. The gate keeps a list of such suffixes
+(`unpatched_suffixes` in `release/verify-image.sh`): release and candidate
+runs refuse them, and a trial run without patches must use one.
 A release or candidate gate run refuses to pass while this directory has no
 patches or `release/regression/` has no checks.
 

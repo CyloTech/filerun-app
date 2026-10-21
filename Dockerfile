@@ -10,7 +10,8 @@
 # the deployed digest instead of rebuilding it.
 
 ARG PHP74_SOURCE_VERSION=7.4.3-4ubuntu2.29
-ARG PHP74_LOCAL_SUFFIX=+cylo1
+# +cylo1 was used by unpatched trial builds; the release gate refuses it.
+ARG PHP74_LOCAL_SUFFIX=+cylo2
 
 FROM ubuntu:20.04@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214 AS php74-build
 ARG PHP74_SOURCE_VERSION

@@ -51,6 +51,17 @@ case "$php_version" in
     7.4.3-4ubuntu2.*+cylo[0-9]*) ;;
     *) fail "unexpected php7.4 version in Dockerfile: $php_version" ;;
 esac
+php_suffix=$(dockerfile_arg PHP74_LOCAL_SUFFIX)
+# Local suffixes already carried by builds that had no patches in
+# php74-patches/ (the unpatched staging trials used +cylo1). A release or
+# candidate must not reuse one, so the installed package version alone shows
+# that the patches are in; an unpatched trial must use one, so it can never
+# be mistaken for a patched build.
+unpatched_suffixes="+cylo1"
+suffix_is_unpatched=false
+for s in $unpatched_suffixes; do
+    [ "$php_suffix" != "$s" ] || suffix_is_unpatched=true
+done
 
 run_in_image() {
     docker run --rm --network none --entrypoint "$@"
@@ -65,9 +76,14 @@ echo "$patch_count patch(es), $check_count regression check(s)"
 if [ "$mode" != trial ]; then
     [ "$patch_count" -gt 0 ] || fail "php74-patches/ has no patches"
     [ "$check_count" -gt 0 ] || fail "release/regression/ has no checks"
+    [ "$suffix_is_unpatched" = false ] \
+        || fail "PHP74_LOCAL_SUFFIX $php_suffix was used by an unpatched build; bump it"
 elif [ "$patch_count" -eq 0 ]; then
+    [ "$suffix_is_unpatched" = true ] \
+        || fail "an unpatched trial must use a suffix from: $unpatched_suffixes (found $php_suffix)"
     echo "TRIAL: no patches; this image only proves the rebuild and the gate"
 fi
+echo "php7.4 version $php_version (suffix $php_suffix; unpatched builds used: $unpatched_suffixes)"
 expected_patches=$(cd "$repo_dir/php74-patches" && for p in *.patch; do
     [ -e "$p" ] || continue
     printf '%s  %s\n' "$(sha256sum < "$p" | cut -c1-64)" "$p"

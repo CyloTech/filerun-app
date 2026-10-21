@@ -21,6 +21,9 @@ new_image=$1
 deployed_image=$2
 release_dir=$(cd "$(dirname "$0")" && pwd)
 expected_packages="${release_dir}/expected-php74-packages.txt"
+dockerfile="$(dirname "${release_dir}")/Dockerfile"
+php_version="$(sed -n 's/^ARG PHP74_SOURCE_VERSION=//p' "${dockerfile}")$(sed -n 's/^ARG PHP74_LOCAL_SUFFIX=//p' "${dockerfile}")"
+[[ "${php_version}" == 7.4.3-4ubuntu2.*+cylo[0-9]* ]] || { echo "unexpected php7.4 version in Dockerfile: ${php_version}" >&2; exit 1; }
 
 gate_root=$(mktemp -d /home/appbox/builds/filerun-gate.XXXXXX)
 [[ "${gate_root}" =~ ^/home/appbox/builds/filerun-gate\.[A-Za-z0-9]{6}$ ]] || { echo "unexpected gate directory" >&2; exit 1; }
@@ -125,9 +128,9 @@ check_php() {
         | awk -F'|' '$3 == "php7.4" {print $1 "|" $2 "|" $4}' | sort -t'|' -k2,2 > "${gate_root}/${container}.php"
     awk -F'|' '{print $2}' "${gate_root}/${container}.php" | diff -u "${expected_packages}" - \
         || fail "${container}: php7.4 package set changed after the first start"
-    if awk -F'|' '$1 !~ /^[hi]i/ || $3 !~ /\+cylo/' "${gate_root}/${container}.php" | grep -q .; then
+    if awk -F'|' -v v="${php_version}" '$1 !~ /^[hi]i/ || $3 != v' "${gate_root}/${container}.php" | grep -q .; then
         cat "${gate_root}/${container}.php" >&2
-        fail "${container}: a php7.4 package is no longer the rebuilt one after the first start"
+        fail "${container}: a php7.4 package is no longer the rebuilt ${php_version} after the first start"
     fi
     docker exec "${container}" php -r 'exit(extension_loaded("ionCube Loader") ? 0 : 1);' \
         || fail "${container}: ionCube is not loaded in the PHP CLI"
