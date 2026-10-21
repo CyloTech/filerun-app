@@ -75,13 +75,16 @@ launch() {
         "${image}" >/dev/null
 }
 
-# Ready means: the init script finished, and nginx + PHP-FPM serve FileRun's
-# login page, which needs the ionCube loader in PHP-FPM.
+# Ready means: the init script finished, nginx + PHP-FPM serve FileRun's
+# login page, which needs the ionCube loader in PHP-FPM, and the MySQL server
+# that runit starts after the init script accepts connections (the login page
+# is served before it does).
 wait_ready() {
     local container=$1
     for _ in $(seq 1 300); do
         if docker exec "${container}" test -f /etc/filerun_installed 2>/dev/null \
-            && docker exec "${container}" sh -c 'curl -fsS http://127.0.0.1/ | grep -qi filerun' 2>/dev/null; then
+            && docker exec "${container}" sh -c 'curl -fsS http://127.0.0.1/ | grep -qi filerun' 2>/dev/null \
+            && docker exec "${container}" mysqladmin --socket=/run/mysqld/mysqld.sock -uroot -pmysqlr00t ping >/dev/null 2>&1; then
             return 0
         fi
         [[ "$(docker inspect --format '{{.State.Running}}' "${container}" 2>/dev/null)" == true ]] \
@@ -119,16 +122,16 @@ start_mysql_by_hand() {
 check_php() {
     local container=$1
     docker exec "${container}" dpkg-query -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}|${Version}\n' \
-        | awk -F'|' '$3 == "php7.4" {print $1 "|" $2 "|" $4}' | sort > "${gate_root}/${container}.php"
+        | awk -F'|' '$3 == "php7.4" {print $1 "|" $2 "|" $4}' | sort -t'|' -k2,2 > "${gate_root}/${container}.php"
     awk -F'|' '{print $2}' "${gate_root}/${container}.php" | diff -u "${expected_packages}" - \
         || fail "${container}: php7.4 package set changed after the first start"
-    if awk -F'|' '$1 !~ /^ii/ || $3 !~ /\+cylo/' "${gate_root}/${container}.php" | grep -q .; then
+    if awk -F'|' '$1 !~ /^[hi]i/ || $3 !~ /\+cylo/' "${gate_root}/${container}.php" | grep -q .; then
         cat "${gate_root}/${container}.php" >&2
         fail "${container}: a php7.4 package is no longer the rebuilt one after the first start"
     fi
     docker exec "${container}" php -r 'exit(extension_loaded("ionCube Loader") ? 0 : 1);' \
         || fail "${container}: ionCube is not loaded in the PHP CLI"
-    docker exec "${container}" sh -c 'cat > /home/appbox/public_html/appbox-gate-upload.php' <<'PHP'
+    docker exec -i "${container}" sh -c 'cat > /home/appbox/public_html/appbox-gate-upload.php' <<'PHP'
 <?php
 echo count($_FILES), ':', $_FILES['f']['size'] ?? -1, ':', $_POST['a'] ?? '', ':', extension_loaded('ionCube Loader') ? 'ioncube' : 'no-ioncube';
 PHP

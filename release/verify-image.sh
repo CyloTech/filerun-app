@@ -80,11 +80,11 @@ image_patches=$(run_in_image cat "$image_ref" /usr/share/appbox/php74-patches.sh
 echo "== PHP packages (expect $php_version)"
 packages=$(run_in_image dpkg-query "$image_ref" \
     -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}|${Version}\n' \
-    | awk -F'|' '$3 == "php7.4" {print $1 "|" $2 "|" $4}' | sort)
+    | awk -F'|' '$3 == "php7.4" {print $1 "|" $2 "|" $4}' | sort -t'|' -k2,2)
 echo "$packages"
 echo "$packages" | awk -F'|' '{print $2}' | diff -u "$release_dir/expected-php74-packages.txt" - \
     || fail "installed php7.4 packages differ from the deployed set"
-echo "$packages" | awk -F'|' -v v="$php_version" '$1 !~ /^ii/ || $3 != v' | grep -q . \
+echo "$packages" | awk -F'|' -v v="$php_version" '$1 !~ /^[hi]i/ || $3 != v' | grep -q . \
     && fail "some php7.4 packages are not installed at $php_version"
 fpm_version=$(run_in_image php-fpm7.4 "$image_ref" -v | head -1)
 echo "$fpm_version"
