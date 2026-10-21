@@ -65,7 +65,11 @@ launch() {
             -keyout "${data}/certs/cert.key" -out "${data}/certs/cert.crt" >/dev/null 2>&1
         chmod 0644 "${data}/certs/cert.key"
     fi
+    # --init and the tmpfs mounts match the containers serverapi creates, so
+    # the restarts below lose /run like production restarts do.
     docker run -d --platform linux/amd64 --name "${container}" \
+        --init \
+        --tmpfs /run:rw,exec,mode=1777 --tmpfs /tmp:rw,exec,mode=1777 --tmpfs /var/tmp:rw,exec,mode=1777 \
         --add-host api.cylo.io:127.0.0.1 \
         -e INSTANCE_ID=0 -e DOMAIN=filerun-gate.local -e SKIP_APPBOX_CALLBACK="${skip_callback}" \
         -v "${data}/public_html:/home/appbox/public_html" \

@@ -1,6 +1,13 @@
 #!/bin/bash
 set -x
 
+# serverapi creates app containers with tmpfs on /run, /tmp and /var/tmp, so
+# the runtime directories made by the first-start installer are gone after
+# every restart and PHP-FPM (/run/php) and MySQL (/run/mysqld) cannot start.
+# Recreate them on every start; my_init runs this before runit starts them.
+install -d -m 0755 /run/php
+install -d -m 0755 -o appbox -g appbox /run/mysqld
+
 if [ ! -f /etc/filerun_installed ]; then
     # /etc/filerun_installed lives in the container layer, so every new
     # container (including the one an app update creates) runs this block.
