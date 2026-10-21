@@ -1,0 +1,6 @@
+.git
+.idea
+filerun-docker
+sources
+docker-compose.yml
+release
