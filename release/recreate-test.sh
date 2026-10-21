@@ -14,6 +14,7 @@
 #    apt run, ionCube loads in PHP-FPM, and a multipart upload through
 #    nginx and PHP-FPM works.
 set -Eeuo pipefail
+export LC_ALL=C
 
 [[ $# -eq 2 ]] || { echo "usage: $0 <new image> <deployed image>" >&2; exit 2; }
 new_image=$1

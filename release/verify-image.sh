@@ -10,6 +10,7 @@
 # one patch in php74-patches/ and one check in release/regression/; a trial
 # run (an unpushed local/filerun-trial image) only reports their absence.
 set -eu
+export LC_ALL=C
 
 fail() {
     echo "FAIL: $*" >&2
@@ -92,7 +93,7 @@ case "$fpm_version" in
 esac
 
 echo "== Apt pin and holds"
-run_in_image apt-mark "$image_ref" showhold | diff -u "$release_dir/expected-php74-packages.txt" - \
+run_in_image apt-mark "$image_ref" showhold | sort | diff -u "$release_dir/expected-php74-packages.txt" - \
     || fail "held packages differ from the php7.4 set"
 run_in_image grep "$image_ref" -qx 'Pin: version \*+cylo\*' /etc/apt/preferences.d/cylo-php74 \
     || fail "apt pin for the rebuilt php7.4 is missing"

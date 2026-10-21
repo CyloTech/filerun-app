@@ -17,7 +17,9 @@ ARG PHP74_SOURCE_VERSION
 ARG PHP74_LOCAL_SUFFIX
 ENV DEBIAN_FRONTEND=noninteractive DEBFULLNAME="Appbox build" DEBEMAIL=build@localhost
 
-RUN sed -i 's/^# deb-src/deb-src/' /etc/apt/sources.list \
+# force-unsafe-io only skips dpkg's fsync calls in this throwaway build stage.
+RUN echo force-unsafe-io > /etc/dpkg/dpkg.cfg.d/02-unsafe-io \
+    && sed -i 's/^# deb-src/deb-src/' /etc/apt/sources.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends build-essential devscripts dpkg-dev fakeroot quilt \
     && apt-get build-dep -y "php7.4=${PHP74_SOURCE_VERSION}"
@@ -83,7 +85,7 @@ COPY --from=php74-build /build/applied-patches.sha256 /usr/share/appbox/php74-pa
 # php-mysql). The pin and the holds keep the rebuilt php7.4 packages in place
 # when that happens.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends /tmp/php74/*.deb \
+    && apt-get install -y --no-install-recommends -o Dpkg::Options::=--force-unsafe-io /tmp/php74/*.deb \
     && printf '%s\n' \
            'Package: php7.4 php7.4-* libapache2-mod-php7.4' \
            'Pin: version *+cylo*' \
