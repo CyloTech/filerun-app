@@ -1,14 +1,16 @@
 #!/bin/sh
 # Release gate for FileRun 2022.05.19 with the rebuilt php7.4.
 #
-# Release: release/verify-image.sh repo.cylo.net/filerun:<tag>
-# Trial:   release/verify-image.sh local/filerun-trial:<tag> repo.cylo.net/filerun:<tag>
+# Release:   release/verify-image.sh repo.cylo.net/filerun:<tag>
+# Candidate: release/verify-image.sh local/filerun-candidate:<commit> repo.cylo.net/filerun:<tag>
+# Trial:     release/verify-image.sh local/filerun-trial:<tag> repo.cylo.net/filerun:<tag>
 #
 # Exits 0 only when the local image passes every check and the registry
 # definitively reports that the release tag does not exist yet. Any
-# indeterminate registry answer fails. A release run also requires at least
-# one patch in php74-patches/ and one check in release/regression/; a trial
-# run (an unpushed local/filerun-trial image) only reports their absence.
+# indeterminate registry answer fails. Release and candidate runs also
+# require at least one patch in php74-patches/ and one check in
+# release/regression/; a trial run only reports their absence. Candidate and
+# trial images are local-only tags that are never pushed.
 set -eu
 export LC_ALL=C
 
@@ -21,7 +23,12 @@ deployed_ref=repo.cylo.net/filerun@sha256:622fc33a1eaf945577ffdf7a6bcbfd0f608a1b
 
 case "$#" in
     1) image_ref=$1; release_ref=$1; mode=release ;;
-    2) image_ref=$1; release_ref=$2; mode=trial ;;
+    2) image_ref=$1; release_ref=$2
+       case "$image_ref" in
+           local/filerun-candidate:?*) mode=candidate ;;
+           local/filerun-trial:?*) mode=trial ;;
+           *) fail "local images must be tagged local/filerun-candidate:<commit> or local/filerun-trial:<tag>" ;;
+       esac ;;
     *) fail "usage: $0 <image> [<release image>]" ;;
 esac
 for ref in "$image_ref" "$release_ref"; do
@@ -33,12 +40,6 @@ case "$release_ref" in
     repo.cylo.net/filerun:?*) ;;
     *) fail "release image must be repo.cylo.net/filerun:<tag>: $release_ref" ;;
 esac
-if [ "$mode" = trial ]; then
-    case "$image_ref" in
-        local/filerun-trial:?*) ;;
-        *) fail "trial images must be tagged local/filerun-trial:<tag>" ;;
-    esac
-fi
 release_dir=$(cd "$(dirname "$0")" && pwd)
 repo_dir=$(dirname "$release_dir")
 
@@ -61,7 +62,7 @@ echo "== Local patches"
 patch_count=$(find "$repo_dir/php74-patches" -maxdepth 1 -name '*.patch' -type f | wc -l)
 check_count=$(find "$release_dir/regression" -maxdepth 1 -name '*.sh' -type f | wc -l)
 echo "$patch_count patch(es), $check_count regression check(s)"
-if [ "$mode" = release ]; then
+if [ "$mode" != trial ]; then
     [ "$patch_count" -gt 0 ] || fail "php74-patches/ has no patches"
     [ "$check_count" -gt 0 ] || fail "release/regression/ has no checks"
 elif [ "$patch_count" -eq 0 ]; then
