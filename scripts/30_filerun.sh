@@ -2,6 +2,17 @@
 set -x
 
 if [ ! -f /etc/filerun_installed ]; then
+    # /etc/filerun_installed lives in the container layer, so every new
+    # container (including the one an app update creates) runs this block.
+    # When the persistent volumes already hold a FileRun installation, keep
+    # its files, database, users and settings and only redo the per-container
+    # setup.
+    existing_install=false
+    if [ -f /home/appbox/public_html/dav.php ] && [ -f /home/appbox/public_html/system/data/autoconfig.php ]; then
+        existing_install=true
+        echo "Existing FileRun installation found; keeping its files, database and settings"
+    fi
+
     echo "Setting up Ioncube loaders"
     mv /ioncube.tar.gz/ioncube/ioncube_loader_lin_7.4* /usr/lib/php/20190902
 
@@ -15,12 +26,12 @@ if [ ! -f /etc/filerun_installed ]; then
     mkdir -p /home/appbox/trash
     mkdir -p /home/appbox/thumbnails
 
+    if [ "$existing_install" != true ]; then
     rm -fr /home/appbox/public_html/*
 
     echo "Downloading Filerun"
     cd /home/appbox/public_html
     unzip /FileRun.zip
-    rm -fr /FileRun.zip
 
 cat << EOF > /home/appbox/public_html/system/data/autoconfig.php
 <?php
@@ -38,11 +49,14 @@ cat << EOF > /home/appbox/public_html/customizables/config.php
 \$config['path']['trash'] = '/home/appbox/trash';
 \$config['path']['thumbnail_cache'] = '/home/appbox/thumbnails';
 EOF
+    fi
+    rm -fr /FileRun.zip
 
     rm -fr /home/appbox/config/nginx/sites-enabled/default-site.conf
 
     chown -R appbox:appbox /run/mysqld
 
+    if [ "$existing_install" != true ]; then
     /usr/sbin/mysqld --defaults-file=/home/appbox/config/mysql/mysqld.cnf --verbose=0 --socket=/run/mysqld/mysqld.sock &
     while ! (mysqladmin --socket=/run/mysqld/mysqld.sock ping)
     do
@@ -52,20 +66,24 @@ EOF
 
     mysql -u root -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} < /db.sql
 
-    rm -fr /db.sql
-
     php /home/appbox/public_html/cron/reset_superuser_pass.php localhost ${ADMIN_PASS}
 
     pkill -9 mysqld
+    fi
+    rm -fr /db.sql
 
     mv /nginx-webdav.conf /home/appbox/config/nginx/sites-enabled/nginx-webdav.conf
 
     touch /etc/filerun_installed
-    
+
+    if [ "${SKIP_APPBOX_CALLBACK:-0}" = "1" ]; then
+        echo "Skipping the Appbox install callback"
+    else
     until [[ $(curl -i -H "Accept: application/json" -H "Content-Type:application/json" -X POST "https://api.cylo.io/v1/apps/installed/${INSTANCE_ID}" | grep '200') ]]
         do
         sleep 5
     done
+    fi
 ##TODO: REMOVE THIS AFTER RELEASE
 #mkdir /APPBOX_DATA
 #chown -R appbox:appbox /APPBOX_DATA
